@@ -1,0 +1,10 @@
+{
+  "note": "Mockup (projects-reference.webp) coordinates. HD = (x-378)*3, (y-66)*3.",
+  "crop": {"left":378,"top":66,"width":632,"height":276},
+  "a": [[692,218],[724,136],[748,136],[786,218]],
+  "cards": [
+    {"id":"code","tl":[549.5,87.5],"w":64,"h":55,"slope":0.24},
+    {"id":"chart","tl":[863,110],"w":68.5,"h":55,"slope":-0.28},
+    {"id":"people","tl":[874.5,202.5],"w":63,"h":59,"slope":-0.08}
+  ]
+}

@@ -1,0 +1,17 @@
+# Local dependencies, generated output, and private configuration
+node_modules/
+.next/
+.vercel/
+.env*
+!.env.example
+*.log
+*.tsbuildinfo
+.playwright-mcp/
+test-results/
+playwright-report/
+__pycache__/
+*.pyc
+/aendrox/output/
+/aendrox/tools/video-runtime/
+/aendrox/*.png
+/aendrox/typography-verification.json
