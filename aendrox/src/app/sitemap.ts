@@ -1,2 +1,12 @@
-import type {MetadataRoute} from 'next';
-export default function sitemap():MetadataRoute.Sitemap {const base=process.env.SITE_URL||'http://localhost:3000';return ['','about','services','projects','skills','experience','contact','privacy-policy','terms-and-conditions'].map(path=>({url:`${base}/${path}`}))}
+import type { MetadataRoute } from 'next';
+import { SITE_URL, PAGES } from '@/lib/site';
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  const lastModified = new Date();
+  return Object.entries(PAGES).map(([path, page]) => ({
+    url: path ? `${SITE_URL}/${path}` : SITE_URL,
+    lastModified,
+    changeFrequency: page.priority >= 0.8 ? 'weekly' : 'monthly',
+    priority: page.priority,
+  }));
+}
