@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { Send, RotateCcw, X } from 'lucide-react';
 type Message = { role: 'user' | 'assistant'; content: string };
-const welcome: Message = { role: 'assistant', content: 'Hello, I’m your AENDROX robotic assistant. Let’s turn your idea into a clear project brief. What would you like to build?' };
+const welcome: Message = { role: 'assistant', content: 'Hi, I’m the AENDROX assistant. Tell me about your idea and I’ll help shape it into a clear project brief for our team. What would you like to build?' };
 
 function RobotAvatar() {
   const visor = useId();
@@ -48,6 +48,8 @@ export function RobotChat() {
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<'loading' | 'guide' | 'ai' | 'offline'>('loading');
   const [error, setError] = useState('');
+  const [provider, setProvider] = useState('');
+  const [leadSaved, setLeadSaved] = useState(false);
   const log = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLInputElement>(null);
   const lock = useRef(false);
@@ -55,7 +57,7 @@ export function RobotChat() {
   function openChat() { dialog.current?.showModal(); setChatOpen(true); requestAnimationFrame(() => field.current?.focus()); }
   function closeChat() { dialog.current?.close(); setChatOpen(false); }
   useEffect(() => () => { document.body.style.overflow = ''; }, []);
-  useEffect(() => { const controller = new AbortController(); fetch('/api/chat', { signal: controller.signal }).then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(d => setMode(d.mode)).catch(() => { if (!controller.signal.aborted) setMode('offline'); }); return () => controller.abort(); }, []);
+  useEffect(() => { const controller = new AbortController(); fetch('/api/chat', { signal: controller.signal }).then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(d => { setMode(d.mode); setProvider(d.provider || ''); }).catch(() => { if (!controller.signal.aborted) setMode('offline'); }); return () => controller.abort(); }, []);
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [messages, busy]);
   async function send(text: string) {
     const value = text.trim();
@@ -64,10 +66,11 @@ export function RobotChat() {
     const next: Message[] = [...messages, { role: 'user', content: value }];
     setMessages(next);
     try {
-      const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: next.slice(-12) }), signal: AbortSignal.timeout(30000) });
+      const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: next.slice(-24), leadSaved }), signal: AbortSignal.timeout(90000) });
       const data = await response.json();
+      if (data.leadSaved) setLeadSaved(true);
       if (!response.ok) throw new Error(data.error || 'Could not send your message. Please try again.');
-      setMode(data.mode); setMessages([...next, { role: 'assistant', content: data.reply }]);
+      setMode(data.mode); if (data.provider) setProvider(data.provider); setMessages([...next, { role: 'assistant', content: data.reply }]);
     } catch (e) { setMessages(messages); setInput(value); setError(e instanceof Error && e.name !== 'TimeoutError' ? e.message : 'The request timed out. Please try again.'); }
     finally { lock.current = false; setBusy(false); field.current?.focus(); }
   }
@@ -77,12 +80,13 @@ export function RobotChat() {
       <RobotGreeterArt/>
     </button>, document.body)}
     <dialog className="robot-chat-dialog" ref={dialog} onClose={() => setChatOpen(false)} aria-label="AENDROX robotic assistant chat" onClick={e => { if (e.target === e.currentTarget) closeChat(); }}>
-    <div className="robot-chat-panel"><div className="robot-chat-header"><RobotAvatar/><div><strong>AENDROX Robotic Assistant</strong><small>{mode === 'ai' ? 'Live AI · powered by OpenAI' : mode === 'loading' ? 'Connecting…' : mode === 'offline' ? 'Connection unavailable' : 'Local guide · preset answers'}</small></div><button type="button" aria-label="Reset chat" disabled={busy} onClick={() => { if (!window.confirm('Clear this conversation?')) return; setMessages([welcome]); setInput(''); setError(''); field.current?.focus(); }}><RotateCcw size={17}/></button><button type="button" aria-label="Close chat" onClick={closeChat}><X size={20}/></button></div>
+    <div className="robot-chat-panel"><div className="robot-chat-header"><RobotAvatar/><div><strong>AENDROX Robotic Assistant</strong><small>{mode === 'ai' ? `Live AI agent${provider ? ` · ${provider}` : ''}` : mode === 'loading' ? 'Connecting…' : mode === 'offline' ? 'Connection unavailable' : 'Local guide · preset answers'}</small></div><button type="button" aria-label="Reset chat" disabled={busy} onClick={() => { if (!window.confirm('Clear this conversation?')) return; setMessages([welcome]); setLeadSaved(false); setInput(''); setError(''); field.current?.focus(); }}><RotateCcw size={17}/></button><button type="button" aria-label="Close chat" onClick={closeChat}><X size={20}/></button></div>
     <div className="robot-chat-log" ref={log} role="log" aria-live="polite" aria-relevant="additions text">{messages.map((m,i) => <div key={i} className={`robot-message ${m.role}`}><span>{m.role === 'user' ? 'You' : 'AENDROX'}</span><p>{m.content}</p></div>)}{busy && <div className="robot-typing" role="status" aria-label="Preparing response"><i/><i/><i/></div>}</div>
     <div className="robot-prompts">{['Explore AENDROX Services', 'Build a Website', 'Create a SaaS Product', 'AI Automation Solutions', 'Get a Project Estimate', 'Contact AENDROX'].map(q => <button type="button" key={q} disabled={busy || mode === 'loading'} onClick={() => send(q)}>{q}</button>)}</div>
+    {leadSaved && <p className="robot-chat-note" role="status" style={{ color: '#7ee2a8' }}>✓ Your project brief was sent to the AENDROX team. We’ll reply by email.</p>}
     {error && <p className="robot-chat-error" role="alert">{error}</p>}
     <form className="robot-composer" onSubmit={e => { e.preventDefault(); void send(input); }}><label className="sr-only" htmlFor="robot-message">Message the robotic assistant</label><input id="robot-message" ref={field} value={input} onChange={e => setInput(e.target.value)} maxLength={2000} placeholder="Tell me about your idea…" disabled={busy} autoComplete="off"/><button type="submit" aria-label="Send chat message" disabled={busy || !input.trim() || mode === 'loading'}><Send size={18}/></button></form>
-    <p className="robot-chat-note">{mode === 'ai' ? 'Messages are sent to OpenAI. Avoid sensitive information. AI can make mistakes.' : 'Local guide answers are preset. This chat does not send an inquiry.'} <Link href="/contact#project-inquiry" onClick={closeChat}>Open inquiry form ↗</Link></p>
+    <p className="robot-chat-note">{mode === 'ai' ? 'Messages are processed by AI. With your permission, your brief and contact details are sent to the AENDROX team. Avoid sensitive information. AI can make mistakes.' : 'Local guide answers are preset. This chat does not send an inquiry.'} <Link href="/contact#project-inquiry" onClick={closeChat}>Open inquiry form ↗</Link></p>
     </div>
     </dialog>
   </section>;
